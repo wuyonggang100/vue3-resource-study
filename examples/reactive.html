@@ -10,8 +10,9 @@
       let { readonly, reactive, shallowReactive, shallowReadonly } =
         VueRactivity;
 
-      let state = reactive({ name: "wu", age: { n: 13 } });
+      let state = readonly({ name: "wu", age: { n: 13 } });
       console.log(state.age);
+      state.name = "张三";
     </script>
   </body>
 </html>

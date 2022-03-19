@@ -3,13 +3,15 @@
 
 import { extend, isObject } from "@vue/shared";
 import { reactive, readonly } from "./reactive";
+import { track } from "./effect";
+import { TrackTypes } from "./operators";
 
 function createGetter(isReadonly = false, isShallow = false) {
   return function get(target, key, receiver) {
     const res = Reflect.get(target, key, receiver);
-
     if (!isReadonly) {
       // 需要收集依赖
+      track(target, TrackTypes.GET, key);
     }
     // 只代理第一层, 需要i收集第一层依赖
     if (isShallow) {
@@ -22,6 +24,7 @@ function createGetter(isReadonly = false, isShallow = false) {
     return res;
   };
 }
+
 function createSetter(isShallow = false) {
   return function set(target, key, value, receiver) {
     const result = Reflect.set(target, key, value, receiver);
