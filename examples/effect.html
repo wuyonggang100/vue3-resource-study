@@ -10,17 +10,33 @@
     <script>
       let { reactive, effect } = VueRactivity;
 
-      let state = reactive({ name: "张三", age: 18, other: "xxxx" });
-      effect(() => {
-        app.innerHTML = "我名字叫" + state.name + ",今年" + state.other + "岁";
+      let state = reactive({
+        name: "李四",
+        age: 18,
+        other: "xxxx",
+        arr: [1, 2, 3, 4],
       });
       effect(() => {
-        app.innerHTML = `我名字叫${state.name},今年${state.age}岁`;
+        // app.innerHTML =
+        //   "我名字叫" + state.name.first + ",今年" + state.age + "岁";
+        // app.innerHTML =
+        //   state.name +
+        //   "-----------" +
+        //   state.arr[2] +
+        //   "----------------" +
+        //   state.arr.length;
+        app.innerHTML = state.qqqq;
       });
+      // effect(() => {
+      //   app.innerHTML = `我名字叫${state.name},今年${state.age}岁`;
+      // });
 
       setTimeout(() => {
-        state.age = "20";
-      }, 100);
+        // state.name = "王五";
+        state.qqqq = 22;
+        // state.arr[2] = "56";
+        // state.arr.length = 20;
+      }, 500);
     </script>
   </body>
 </html>

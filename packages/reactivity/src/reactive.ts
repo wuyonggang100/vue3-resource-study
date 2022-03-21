@@ -16,7 +16,7 @@ export function createReactiveObject(target, isReadonly, handlers) {
 
   const proxyMap = isReadonly ? readonlyMap : reactiveMap;
   // 如果某个对象已经被代理过了就不要再代理了
-  const existProxy = proxyMap.has(target);
+  const existProxy = proxyMap.get(target);
   if (existProxy) {
     return existProxy;
   }

@@ -1,5 +1,6 @@
 // effect 默认会执行一次，当依赖的数据变化时，会重新执行
-import { TrackTypes } from "./operators";
+import { TrackTypes, TriggerOrTypes } from "./operators";
+import { isArray, isIntegerKey } from "@vue/shared";
 
 export function effect(fn, options?: any) {
   const effect = createReactiveEffect(fn, options);
@@ -62,6 +63,52 @@ export function track(target, type, key) {
   if (!dep.has(activeEffect)) {
     dep.add(activeEffect);
   }
-
   console.log("targetMap---", targetMap);
+}
+
+// 触发更新，effect 汇总
+export function trigger(target, type, key?, newValue?, oldValue?) {
+  const depsMap = targetMap.get(target);
+  // 如果这个target 没有被收集过，也就是没有被依赖过，就不做任何操作
+  if (!depsMap) return;
+
+  // 将需要执行的 effect 收集到一个新 set 中，最后一次性全部执行
+  // 同一个 target 收集同一个 effect 多次时，会去重，保证只收集一次；
+  // 同一个 target 下所有依赖的 key 收集的全部 effect ，扁平汇总到同一个 set 中，算是一个优化；
+  const effects = new Set();
+  const add = (effectsToAdd) => {
+    if (effectsToAdd) {
+      effectsToAdd.forEach((effect) => effects.add(effect));
+    }
+  };
+
+  // 操作的是数组 length
+  if (key === "length" && isArray(target)) {
+    // depsMap 此时只与数组有关
+    depsMap.forEach((dep, k) => {
+      // 直接使用 length 或没有直接使用 length,但是修改 length 对依赖有影响的，如新数组长度小于依赖的索引位置，需要更新
+      if (k === "length" || k > newValue) {
+        add(dep);
+      }
+    });
+
+    console.log("---", effects);
+  } else {
+    // 修改对象属性或者修改数组已有的索引,或者新增一个原来被依赖了但是并不存在在对象上的属性；
+    if (key !== undefined) {
+      add(depsMap.get(key));
+    }
+
+    // 如果修改的是数组中的某一项，并且是新增，影响了数组长度, 如 arr[100] = 'xxx'
+    // 新增的索引会触发长度的更新
+    switch (type) {
+      case TriggerOrTypes.ADD:
+        if (isArray(target) && isIntegerKey(key)) {
+          add(depsMap.get("length")); // 直接使用了 length 或直接依赖了数组 arr 时会去取 length，否则就不会更新
+        }
+    }
+  }
+
+  // 最后批量一次执行
+  effects.forEach((effect: any) => effect());
 }
