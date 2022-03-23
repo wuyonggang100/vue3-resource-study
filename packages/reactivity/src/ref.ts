@@ -10,6 +10,8 @@ export function ref(value) {
 export function shallowRef(value) {
   return createRef(value, true);
 }
+
+// 如果 ref 传入对象，就会得到一 响应式 reactive Proxy
 const convert = (val) => (isObject(val) ? reactive(val) : val);
 
 // 类里面的 get 和 set 会被编译成 Object.defineProperty
@@ -31,6 +33,7 @@ class RefImpl {
     return this._value;
   }
 
+  // ref() 传入普通值时才会进入此方法
   set value(newValue) {
     // 新值与旧值不同时才触发更新
     if (hasChanged(newValue, this.rawValue)) {

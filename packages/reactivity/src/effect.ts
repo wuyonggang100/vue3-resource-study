@@ -17,7 +17,7 @@ let effectStack = []; //存储 effect 调用关系
 
 function createReactiveEffect(fn, options) {
   const effect = function reactiveEffect() {
-    // 如果 effect 已经在战争中，就不要执行，避免进入死循环
+    // 如果 effect 已经在栈中，就不要执行，避免进入死循环
     if (!effectStack.includes(effect)) {
       // 即使函数 fn 出现异常，也能保证关系正确
       try {

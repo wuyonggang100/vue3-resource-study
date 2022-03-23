@@ -11,22 +11,33 @@
     <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
     <script>
       let { ref, effect, shallowRef } = VueRactivity;
-      let name = ref("张三");
 
-      console.log("name---", name);
+      function run1() {
+        let name = ref("张三");
+        console.log("name---", name);
+        effect(() => {
+          app.innerHTML = name.value;
+        });
+        setTimeout(() => {
+          name.value = "李四";
+        }, 1000);
+      }
 
-      // 只会收集一次依赖
-      effect(() => {
-        app.innerHTML = name.value;
-      });
+      function run2() {
+        let user = ref({
+          name: "张三",
+        });
+        console.log("user---", user);
+        effect(() => {
+          root.innerHTML = user.value.name;
+        });
+        setTimeout(() => {
+          user.value.name = "王五";
+        }, 1000);
+      }
 
-      effect(() => {
-        root.innerHTML = name.value;
-      });
-
-      setTimeout(() => {
-        name.value = "李四";
-      }, 1000);
+      run1();
+      run2();
     </script>
   </body>
 </html>

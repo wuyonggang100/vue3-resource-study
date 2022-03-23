@@ -42,7 +42,6 @@ function createSetter(isShallow = false) {
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
         : hasOwn(target, key);
-    debugger;
     const result = Reflect.set(target, key, value, receiver); // 返回 true 或 false
 
     if (!hadKey) {
