@@ -10,9 +10,9 @@
 
     <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
     <script>
-      let { ref, effect, toRef, reactive } = VueRactivity;
+      let { ref, effect, toRef, reactive, toRefs } = VueRactivity;
 
-      function run1() {
+      function refDemo() {
         let name = ref("张三");
         console.log("name---", name);
         effect(() => {
@@ -23,7 +23,7 @@
         }, 1000);
       }
 
-      function run2() {
+      function refDemo2() {
         let user = ref({
           name: "张三",
         });
@@ -36,7 +36,7 @@
         }, 1000);
       }
 
-      function run3() {
+      function toRefDemo() {
         let user = reactive({
           name: "张三",
         });
@@ -53,9 +53,27 @@
         }, 1500);
       }
 
-      // run1();
-      // run2();
-      run3();
+      function toRefsDemo() {
+        let user = reactive({
+          name: "张三",
+          age: 16,
+        });
+
+        let { name, age } = toRefs(user);
+
+        effect(() => {
+          // root.innerHTML = user.name;
+          root.innerHTML = name.value + "-----------" + age.value;
+        });
+        setTimeout(() => {
+          name.value = "李四";
+          age.value = 18;
+        }, 1500);
+      }
+      // refDemo();
+      // refDemo2();
+      // toRefDemo();
+      toRefsDemo();
     </script>
   </body>
 </html>

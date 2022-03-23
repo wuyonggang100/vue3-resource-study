@@ -1,6 +1,6 @@
 import { track, trigger } from "./effect";
 import { TrackTypes, TriggerOrTypes } from "./operators";
-import { hasChanged, isObject } from "@vue/shared";
+import { hasChanged, isArray, isObject } from "@vue/shared";
 import { reactive } from "./reactive";
 
 export function ref(value) {
@@ -54,14 +54,26 @@ class ObjectRefImpl {
   constructor(public target, public key) {}
 
   get value() {
-    return this.target[this.key];
+    return this.target[this.key]; // 取值 Proxy 会进入依赖收集
   }
 
   set value(newValue) {
-    this.target[this.key] = newValue;
+    this.target[this.key] = newValue; // 触发 Proxy 更新
   }
 }
 
 export function toRef(target, key) {
   return new ObjectRefImpl(target, key);
+}
+
+// ---------------toRefs 的实现-----------------
+// 在 toRef 基础上实现的，批量响应式解构
+
+// target 可以是数组或对象;
+export function toRefs(target) {
+  let ret = isArray(target) ? new Array(target.length) : {};
+  for (let key in target) {
+    ret[key] = toRef(target, key);
+  }
+  return ret;
 }
