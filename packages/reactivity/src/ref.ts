@@ -47,3 +47,21 @@ class RefImpl {
 function createRef(rawValue, shallow = false) {
   return new RefImpl(rawValue, shallow);
 }
+
+// ------------- toRef 逻辑-----------------------------
+class ObjectRefImpl {
+  public __v_isRef = true; // 标识是一个 ref 属性
+  constructor(public target, public key) {}
+
+  get value() {
+    return this.target[this.key];
+  }
+
+  set value(newValue) {
+    this.target[this.key] = newValue;
+  }
+}
+
+export function toRef(target, key) {
+  return new ObjectRefImpl(target, key);
+}
