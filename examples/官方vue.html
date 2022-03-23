@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
+    <script type="module">
+      function run() {
+        let name = ref("张三");
+
+        console.log("name---", name);
+
+        effect(() => {
+          app.innerHTML = name.value;
+        });
+
+        setTimeout(() => {
+          name.value = "李四";
+        }, 1000);
+      }
+
+      // 使用方式一, 会将变量放到此 esm module 全局,非 window上
+      import {
+        ref,
+        effect,
+        shallowRef,
+      } from "https://cdn.bootcdn.net/ajax/libs/vue/3.2.31/vue.esm-browser.js";
+
+      run();
+
+      console.log("effect-----", effect);
+      console.log("effect-window----", window.effect);
+      console.log("this-----", this);
+
+      // 使用方式二
+      const {} = import(
+        "https://cdn.bootcdn.net/ajax/libs/vue/3.2.31/vue.esm-browser.js"
+      ).then((VueRactivity) => {
+        let { ref, effect, shallowRef } = VueRactivity;
+      });
+    </script>
+  </body>
+</html>

@@ -37,13 +37,15 @@ function createReactiveEffect(fn, options) {
   return effect;
 }
 
-// 收集依赖
-const targetMap = new WeakMap(); // 全部对象的依赖集合，不需要收集的对象不在此列
+// 全部对象的依赖集合，不需要收集的对象不在此列， 在一个 vm 实例内是一个全局变量
+const targetMap = new WeakMap();
 
 // 最外一层 map 的 key 是对象，value 是个 Map；
 // 第二层 map 的 key 就是依赖的对象的 key，value 是个 Set；对象中有几个需要依赖的 key，就有几个 key--value  组合；
 // Set 中是一个个 关联的 effect ，当 对象的 key 值被修改时，就会将此 set 中的 efect 取出全部执行；
 // 使用 set 不会有重复，可以保证 effect 唯一；
+
+// 收集依赖
 export function track(target, type, key) {
   // 当没有在 effect 中取值时，activeEffect 不存在，不用收集依赖，
   if (activeEffect === undefined) {
@@ -51,6 +53,7 @@ export function track(target, type, key) {
   }
 
   let depsMap = targetMap.get(target);
+  // 不会重复收集，只有第一次收集
   if (!depsMap) {
     targetMap.set(target, (depsMap = new Map()));
   }
@@ -66,7 +69,7 @@ export function track(target, type, key) {
   console.log("targetMap---", targetMap);
 }
 
-// 触发更新，effect 汇总
+// 触发更新，effect 汇总，然后批量一次新更新
 export function trigger(target, type, key?, newValue?, oldValue?) {
   const depsMap = targetMap.get(target);
   // 如果这个target 没有被收集过，也就是没有被依赖过，就不做任何操作
