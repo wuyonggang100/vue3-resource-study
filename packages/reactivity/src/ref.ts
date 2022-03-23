@@ -1,6 +1,7 @@
 import { track, trigger } from "./effect";
 import { TrackTypes, TriggerOrTypes } from "./operators";
-import { hasChanged } from "@vue/shared";
+import { hasChanged, isObject } from "@vue/shared";
+import { reactive } from "./reactive";
 
 export function ref(value) {
   return createRef(value);
@@ -9,6 +10,7 @@ export function ref(value) {
 export function shallowRef(value) {
   return createRef(value, true);
 }
+const convert = (val) => (isObject(val) ? reactive(val) : val);
 
 // 类里面的 get 和 set 会被编译成 Object.defineProperty
 // 因为 Proxy 只能处理 对象， 不能处理普通值；
@@ -19,7 +21,7 @@ class RefImpl {
   public __v_isShallow;
   public __v_isRef = true; // 标识是一个 ref 属性
   constructor(public rawValue, public shallow) {
-    this._value = rawValue;
+    this._value = shallow ? rawValue : convert(rawValue);
     this.__v_isShallow = shallow;
   }
 
@@ -33,7 +35,7 @@ class RefImpl {
     // 新值与旧值不同时才触发更新
     if (hasChanged(newValue, this.rawValue)) {
       this.rawValue = newValue;
-      this._value = newValue;
+      this._value = this.shallow ? newValue : convert(newValue);
       trigger(this, TriggerOrTypes.SET, "value", newValue);
     }
   }
