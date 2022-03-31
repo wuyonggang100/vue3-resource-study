@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>
+    <script>
+      let { createApp, h } = VueRuntimeDom;
+      const App = {
+        data() {
+          return {
+            a: "1",
+          };
+        },
+        props: {
+          name: String,
+        },
+        render(proxy) {
+          console.log(proxy.a);
+          console.log(proxy === this);
+          return h("div", { style: { color: "red" } });
+        },
+      };
+      createApp(App, { name: "张三" }).mount("#app");
+    </script>
+  </body>
+</html>

@@ -58,11 +58,19 @@
 
 ### 4、runtime-core 核心
 
+- 有最基本的渲染和挂载方法， 接收 runtime-dom 传过来的参数，进行调用；不包含任何 dom 操作；
+
+- 本质是将组件根据组件的属性和方法来转化成虚拟 dom ，再将虚拟 dom 转化成真实 dom 挂载到真实页面上；这一步是 最重要的；
+
 
 
 ### 5、runtime-dom 核心
 
 ​		核心就是提供 dom 方法, 属性操作；nodeOPs 是 dom 操作， patchProp 是属性操作；
+
+- ##### 对属性的处理
+
+  attribute 只有移除和设置；style 有覆盖和修改； class 有移除和设置；
 
 - ##### 对事件的处理。
 
@@ -102,9 +110,42 @@
   }
   ```
 
-  
 
-​	
+- 拿到浏览器平台的属性和一些方法，然后交给 runtime-core 执行。对 runtime-core 的 mount 方法切片重写，并且执行；本身没有渲染功能；
+
+  ```js
+  // 节点操作，增删改查
+  // 属性操作，样式，事件, 其他属性等
+  import { nodeOps } from "./nodeOps";
+  import { patchProp } from "./patchProp";
+  import { extend } from "@vue/shared";
+  import { createRenderer } from "@vue/runtime-core";
+  
+  // 渲染时用到的方法，包括 dom 的属性和事件
+  // runtime-dom 是为了解决平台之间的差异
+  const rendererOptions = extend({ patchProp }, nodeOps);
+  
+  // runtime-dom 只获取自己的属性配置，然后交给 runtime-core 执行
+  export function createApp(rootComponent, rootProps = null) {
+    const app = createRenderer(rendererOptions).createApp(
+      rootComponent,
+      rootProps
+    );
+  
+    // mount 是 runtime-core 中的 mount 方法
+    const { mount } = app;
+    // 重写 mount 方法
+    app.mount = function (container) {
+      container = nodeOps.querySelector(container);
+      container.innerHTML = "";
+      mount(container);
+    };
+    return app;
+  }
+  
+  ```
+
+  
 
 
 
