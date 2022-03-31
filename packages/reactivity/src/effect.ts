@@ -11,6 +11,7 @@ export function effect(fn, options?: any) {
 
   return effect;
 }
+
 let uid = 0;
 let activeEffect; // 当前的 effect
 let effectStack = []; //存储 effect 调用关系
@@ -23,7 +24,7 @@ function createReactiveEffect(fn, options) {
       try {
         effectStack.push(effect); // 函数的引用地址
         activeEffect = effect;
-        return fn(); //
+        return fn(); // 需要将执行结果返回，如 computed
       } finally {
         effectStack.pop(); // effect 执行完后就出栈
         activeEffect = effectStack[effectStack.length - 1]; // 栈顶的那个
@@ -31,7 +32,7 @@ function createReactiveEffect(fn, options) {
     }
   };
   effect.id = uid++; // 给每个 effect 加个标识
-  effect._isEfect = true; // 标识它是个响应式 effect
+  effect._isEffect = true; // 标识它是个响应式 effect
   effect.raw = fn;
   effect.options = options;
   return effect;
@@ -113,5 +114,11 @@ export function trigger(target, type, key?, newValue?, oldValue?) {
   }
 
   // 最后批量一次执行
-  effects.forEach((effect: any) => effect());
+  effects.forEach((effect: any) => {
+    if (effect.options?.scheduler) {
+      effect.options.scheduler();
+    } else {
+      effect();
+    }
+  });
 }

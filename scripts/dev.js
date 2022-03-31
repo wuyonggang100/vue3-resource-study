@@ -1,7 +1,8 @@
 const execa = require("execa");
 
-// build 时获取所有包遍历打包， 开发时指定目标打包即可
-const package = "reactivity";
+// build 时获取所有包遍历打包， 开发时指定目标打包即可, 开发到那个包就写那个包名
+// const package = "reactivity";
+const package = "runtime-dom";
 
 build(package).then((r) => {
   console.log(`${package} 包打包完毕`);
