@@ -147,7 +147,54 @@
 
   
 
+## 二、 虚拟节点 vnode
+
+在runtime-core 中创建 ；
+
+### 2.1  shapeFlags 的运算
+
+> 位运算`是`类型处理`和`权限校验`的`最佳实践。
+
+与运算： 同位都为 1 得 1， 其他得 0 ；
+
+或运算：同位有一个是 1 就得 1， 其他得 0 ；
+
+假如我们需要判断一个未知组件的类型，就可以取此类型与下面的各种 flag 做 & 与运算，只要得到的结果不为 0，就说明此未知组件类型与 flag 类型一致；
+
+```js
+export const enum ShapeFlags {
+  ELEMENT = 1, // 00000001 -->1   普通元素
+  FUNCTIONAL_COMPONENT = 1 << 1, // 00000010 --> 2  函数组件
+  STATEFUL_COMPONENT = 1 << 2, // 00000100 --> 4  状态组件
+  TEXT_CHILDREN = 1 << 3, // 8 子节点是文本节点
+  ARRAY_CHILDREN = 1 << 4, // 16 子节点是数组
+  SLOTS_CHILDREN = 1 << 5, // 32 子节点是插槽
+  TELEPORT = 1 << 6, // 64 teleport 组件
+  SUSPENSE = 1 << 7, // 128 异步组件
+  COMPONENT_SHOULD_KEEP_ALIVE = 1 << 8, // 256
+  COMPONENT_KEPT_ALIVE = 1 << 9, // 512
+  // 状态组件和函数组件
+  COMPONENT = ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.FUNCTIONAL_COMPONENT,
+}
+```
+
+假如未知组件的类型为 type ，
+
+```js
+// 00000001 & 00000001 => 00000001
+// 未知组件 & ShapeFlags.ELEMENT => 00000001  只要 & 出来的结果不是0，就说明 type 元素组件
+if(type & ShapeFlags.ELEMENT){
+    // 处理 element
+}
+
+// COMPONENT = ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.FUNCTIONAL_COMPONENT
+// 00000100 | 00000010 => 00000110 
+if(type & ShapeFlags.COMPONENT){
+    // 只要 & 出来结果不为 0 ，type 只可能为 00000100或者 00000010，也就是既可能是 状态组件 ，又可能是 函数组件
+}
+```
 
 
 
+vue3 中还有 slotFlag 和 patchFlag ；
 
