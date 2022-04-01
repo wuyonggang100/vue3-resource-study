@@ -194,7 +194,175 @@ if(type & ShapeFlags.COMPONENT){
 }
 ```
 
+### 2.2  vnode 中的属性
+
+```js
+  const vnode = {
+    __v_isVnode: true, // 标识是一个虚拟节点
+    type,
+    props, // 包含 props 和 attrs 
+    children,
+    component: null, // 存放组件对应的实例
+    el: null, // 对应的真实节点
+    key: props && props.key,
+    shapeFlag,
+  };
+```
+
+### 三、组件实例
+
+### 3.1 组件的实例 instance
+
+instance 中的 props 和 attrs 都来自于 vnode,， 二者分离开了；
+
+instance 中的一些属性，会取出一部分传给 context ，实际属性比以下的多
+
+```js
+  const instance = {
+    vnode,
+    type: vnode.type,
+    props: {},
+    attrs: {},
+    slots: {},
+    ctx: null,
+    render: null,
+    setupState: {}, // 如果 setup 返回一个对象，这个对象会作为 setupState
+    isMounted: false, //标识组件是否已经挂载过
+  };
+```
+
+### 3.2 组件的 context   
+
+>  setup 方法的第二个参数，含有 5 个属性
+
+```js
+{
+    attrs: instance.attrs,
+    props: instance.props,
+    slots: instance.slots,
+    emit: () => {},
+    expose: () => {},
+};
+
+instance.props 与 context.props 中的属性一一致的
+```
+
+### 3.3 组件实例的 render 函数
+
+组件实例的 render 函数的第一个参数是 proxy ，可以将 data， props ，以及 setup 中返回的属性都代理过来,  l例如： 访问 proxy.xxx 即等同于 访问 props.xxx 
+
+```jsx
+props:['xxx']
+render(proxy){ return <div>{{proxy.xxx}}</div>}  
+```
+
+其本质是对 inctance.ctx 做了拦截,  对同名的 key ，使用优先级依次是 ： setupState -->  data --> context --> data ；inctance.ctx  在开发与生产时不一样的， 开发时加了很多提示，因此不直接代理 instance ；
+
+```js
+instance.ctx={_: instance}
+instance.proxy = new Proxy(instance.ctx, PublicInstanceProxyHandlers as any);
 
 
-vue3 中还有 slotFlag 和 patchFlag ；
+get({ _: instance }, key) {
+    if (key[0] === "$") return; // 不能 $ 开头的变量
+    const { setupState, props, data, context } = instance;
+    if (hasOwn(setupState, key)) {
+      return setupState[key];
+    } else if (hasOwn(data, key)) {
+      return data[key];
+    } else if (hasOwn(context, key)) {
+      return context[key];
+    } else {
+      return props[key];
+    }
+},
+```
+
+#### render 函数的构建步骤
+
+> 优先级依次是 setup 的render 函数 --> 组建的 render 函数 ---> 模板 
+
+1. setup 方法中如果返回了函数，就作为 组件实例的 render 函数；
+2. 如果组件上没有 render 函数，就会将模板进行编译，变成组件的 render 函数；
+
+3. 把组件的 render 函数作为 实例的render 函数；
+
+   ```js
+   function setupStatefulComponent(instance) {
+     // 1.代理传递给 render 函数的参数
+     instance.proxy = new Proxy(instance.ctx, PublicInstanceProxyHandlers as any);
+     // 2. 获取组件类型，拿到组件的 setup 方法
+     let Component = instance.type;
+     let { setup } = Component;
+     if (setup) {
+       let setupContext = createSetupContext(instance);
+       const setupResult = setup(instance.props, setupContext);
+       handleSetupResult(instance, setupResult);
+     } else {
+       finishComponentSetup(instance);
+     }
+   }
+   
+   
+   // setup 执行的结果可能是对象或者函数， 如果是函数,就会作为 render 函数
+   function handleSetupResult(instance, setupResult) {
+     if (isFunction(setupResult)) {
+       // 作为 render 函数
+       instance.render = setupResult;
+     } else if (isObject(setupResult)) {
+       instance.setupState = setupResult;
+     }
+     finishComponentSetup(instance);
+   }
+   
+   // 完成组件启动
+   function finishComponentSetup(instance) {
+     let Component = instance.type;
+     if (!instance.render) {
+       if (!Component.render && Component.template) {
+         // 组件如果没有 render 函数，就要对模板进行编译，得到组件的 render  函数
+         // todo ...
+       }
+       instance.render = Component.render;
+     }
+     console.log(instance.render.toString());
+     console.log(instance);
+   }
+   
+   ```
+
+### 3.4  组件初次挂载步骤
+
+1. 拿到组件和组件的数据，props，children 等，生成 vnode 对象， 其上有相关属性和数据， props 包含了外部传来的 props 和 dom attrs；
+2. 拿到 vnode 和容器，判断组件类型，创建组件实例，给组件实例增加各种属性；
+3. 将组件的数据解析到实例上，将 data,  props,  setupState 等属性进行代理，作为 render 的函数的参数，根据上述 render 函数构建步骤得到 render 函数，挂到组件实例上；
+4. 创建一个 effect ， 让组件实例的 render 函数在 effct 中执行；render 中依赖的数据就会收集这个 effect , 但是数据更新时， effect 就会重新执行；
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

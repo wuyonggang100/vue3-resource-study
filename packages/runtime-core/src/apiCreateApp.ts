@@ -9,7 +9,6 @@ export function createAppApi(render) {
       mount(container) {
         // 1. 根据组件创建虚拟节点
         // 2. 将虚拟节点调用 render 方法渲染到容器中
-        debugger;
         let vnode = createVNode(rootComponent, rootProps);
 
         console.log("vnode-----", vnode);
