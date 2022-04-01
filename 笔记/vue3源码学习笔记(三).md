@@ -338,6 +338,53 @@ get({ _: instance }, key) {
 3. 将组件的数据解析到实例上，将 data,  props,  setupState 等属性进行代理，作为 render 的函数的参数，根据上述 render 函数构建步骤得到 render 函数，挂到组件实例上；
 4. 创建一个 effect ， 让组件实例的 render 函数在 effct 中执行；render 中依赖的数据就会收集这个 effect , 但是数据更新时， effect 就会重新执行；
 
+### 3.5  h 函数
+
+- ##### h 函数的几种用法：
+
+```js
+h('div',{})
+h('div','hello world')
+h('div',{}, 'hello world')
+h('div',h(’p‘,{}, '我是p标签'))
+h('div',{},h(’p‘,{}, '我是p标签'))
+h('div',{}, p, span)
+```
+
+- h 函数执行后得到的是个 vnode ， 其内部是调用了 createVnode 方法， 即 render 函数调用后得到的是个 vnode ，得到此 vnode 以后需要递归解析， 即继续调用 patch 方法，直到解析出每一层的元素；
+  - 如果参数只有两个，第二个参数有可能是个字符串， 数组， 或者 vnode；或者是 props ；
+  - 如果参数大于等于三个，从第三个起，都是 children ；
+
+```js
+export function h(type, propsOrChildren, children) {
+  console.log("h 函数");
+  let l = arguments.length; // 参数长度
+  // createVNode 的第三个参数, 即 children , 只能是 null, 字符串或者数组
+  if (l == 2) {
+    // 参数的方式:  类型+属性; 类型+children ;
+    if (isObject(propsOrChildren) && !isArray(propsOrChildren)) {
+      if (isVnode(propsOrChildren)) {
+        // h 函数生成的 vnode
+        return createVNode(type, null, [propsOrChildren]);
+      }
+      // 只有 属性， 没有 children,此时 propsOrChildren 是 props;
+      return createVNode(type, propsOrChildren);
+    } else {
+      // 第二个参数是个数组,或者是个字符串，那一定是 children
+      return createVNode(type, null, propsOrChildren);
+    }
+  } else {
+    if (l > 3) {
+      // 大于三个参数时，从第三个起，都是 children
+      children = Array.prototype.slice.call(arguments, 2);
+    } else if (l === 3 && isVnode(children)) {
+      children = [children];
+    }
+    return createVNode(type, propsOrChildren, children);
+  }
+}
+```
+
 
 
 

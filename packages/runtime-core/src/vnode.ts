@@ -29,7 +29,11 @@ export function createVNode(type, props, children = null) {
   return vnode;
 }
 
+export function isVnode(vnode) {
+  return vnode.__v_isVnode;
+}
 function nomalizeChildren(vnode, children) {
+  // children 如果有，只能是字符串或者数组
   let type = 0;
   if (children == null) {
     // 没有子节点，不做处理

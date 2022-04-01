@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>
+    <script>
+      console.log(VueRuntimeDom);
+      let { createApp, h } = VueRuntimeDom;
+      let App = {
+        data: { a: "data" },
+        render(proxy) {
+          console.log("----", proxy.name, proxy.c);
+        },
+        setup() {
+          // return {
+          //   c: "setup",
+          // };
+          // console.log("setup 运行");
+          return (proxy) => {
+            return h("div", { style: { color: "red" } }, "hello world");
+            console.log("setup 运行");
+          };
+        },
+      };
+      createApp(App, { name: "秦始皇", age: 53 }, "我是app的儿子").mount(
+        "#app"
+      );
+    </script>
+  </body>
+</html>
