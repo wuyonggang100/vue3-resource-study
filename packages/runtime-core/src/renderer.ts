@@ -14,6 +14,7 @@ export function createRenderer(rendererOptions) {
     setText: hostSetText,
     setElementText: hostSetElementText,
     patchProp: hostPatchProp,
+    nextSibling: hostNextSibling,
   } = rendererOptions;
 
   const setupRenderEffect = (instance, container) => {
@@ -30,7 +31,7 @@ export function createRenderer(rendererOptions) {
             proxyToUse,
             proxyToUse
           ));
-          console.log(subTree);
+          console.log("subTree---", subTree);
 
           // 用 render 函数的返回值继续渲染，此处是个递归
           patch(null, subTree, container);
@@ -38,6 +39,15 @@ export function createRenderer(rendererOptions) {
         } else {
           // diff 更新
           console.log("数据更新了，要 diff 更新 ui 了");
+
+          // 获取组件实例的新旧 subTree 进行对比
+          const prevSubTree = instance.subTree;
+          let proxyToUse = instance.proxy; // 作为 render 的参数，调用 render 后可以获取新的 subTree ;
+          const nextSubTree = instance.render.call(proxyToUse, proxyToUse);
+          // debugger;
+          console.log("prevSubTree----", prevSubTree);
+          console.log("nextSubTree----", nextSubTree);
+          patch(prevSubTree, nextSubTree, container);
         }
       },
       {
@@ -65,7 +75,7 @@ export function createRenderer(rendererOptions) {
       mountComponent(n2, container); // 直接挂载到容器中
     } else {
       // diff 更新
-      console.log("节点更新了----");
+      console.log("组件更新了----");
     }
   };
 
@@ -81,7 +91,7 @@ export function createRenderer(rendererOptions) {
     }
   };
   // 第一次挂载元素
-  const mountElement = (vnode, container) => {
+  const mountElement = (vnode, container, anchor = null) => {
     // 此处是个递归过程
     const { props, shapeFlag, type, children } = vnode;
     const el = (vnode.el = hostCreateElement(type));
@@ -100,8 +110,40 @@ export function createRenderer(rendererOptions) {
       mountChildren(children, el);
     }
 
-    // 创建外层 type 节点，不包含 children
-    hostInsert(el, container);
+    // 创建外层 type 节点，不包含 children, 插入到参考节点的前面，如果没有参考节点，就 append
+    hostInsert(el, container, anchor);
+  };
+
+  // 对比新旧元素的属性
+  const patchProps = (oldProps, newProps, el) => {
+    if (oldProps !== newProps) {
+      // 如果新旧属性值不一样, 就使用新的属性值
+      for (let key in newProps) {
+        const prev = oldProps[key];
+        const next = newProps[key];
+        if (prev !== next) {
+          hostPatchProp(el, key, prev, next);
+        }
+      }
+
+      // 如果少了一个属性值，就从 el 中删除此属性
+      for (let key in oldProps) {
+        if (!(key in newProps)) {
+          hostPatchProp(el, key, oldProps[key], null);
+        }
+      }
+    }
+  };
+
+  // 对比新旧元素,两者元素类型相同，此时要复用旧的元素，然后更新属性，更新 children
+  const patchElement = (n1, n2, container) => {
+    // 元素复用
+    let el = (n2.el = n1.el);
+
+    // 更新属性
+    let oldProps = n1.props;
+    let newProps = n2.props;
+    patchProps(oldProps, newProps, el);
   };
 
   // 对文本字符串的处理
@@ -115,19 +157,36 @@ export function createRenderer(rendererOptions) {
   };
 
   // 对普通元素节点的处理
-  const processElement = (n1, n2, container) => {
+  const processElement = (n1, n2, container, anchor = null) => {
     if (n1 == null) {
       // 第一次挂载
       mountElement(n2, container);
     } else {
       // 更新元素
+      console.log("diff 更新元素-----");
+      patchElement(n1, n2, container);
     }
   };
+  const isSameVNodeType = (n1, n2) => {
+    return n1.type === n2.type && n1.key === n2.key;
+  };
 
-  // n1 是上一次的虚拟节点， n2 是新的虚拟节点
-  const patch = (n1, n2, container) => {
+  const unmount = (vnode) => {
+    console.log(vnode.el);
+    hostRemove(vnode.el);
+  };
+
+  // n1 是上一次的 vnode， n2 是新的 vnode, anchor 是 diff 时的位置参照节点
+  const patch = (n1, n2, container, anchor = null) => {
     // 针对 vnode 的类型做不同处理
     const { shapeFlag, type } = n2;
+
+    if (n1 && !isSameVNodeType(n1, n2)) {
+      anchor = hostNextSibling(n1.el);
+      unmount(n1);
+      n1 = null;
+    }
+
     switch (type) {
       case Text: // vnode 是个文本字符串要单独处理
         processText(n1, n2, container);
@@ -136,7 +195,7 @@ export function createRenderer(rendererOptions) {
         // 非文本的其他情况
         if (shapeFlag & ShapeFlags.ELEMENT) {
           // 此时 vnode是普通元素，此处会进入 patch 递归终止
-          processElement(n1, n2, container);
+          processElement(n1, n2, container, anchor);
         } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
           // 此时 vnode 是状态组件, 内部会继续调用 patch 方法递归
           processComponent(n1, n2, container);
@@ -144,6 +203,7 @@ export function createRenderer(rendererOptions) {
         break;
     }
   };
+
   const render = (vnode, container) => {
     patch(null, vnode, container);
   };

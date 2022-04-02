@@ -19,4 +19,5 @@ export const nodeOps = {
   createText: (text) => document.createTextNode(text),
   // 设置文本
   setText: (node, text) => (node.nodeValue = text),
+  nextSibling: (node) => node.nextSibling,
 };

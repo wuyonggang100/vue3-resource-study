@@ -9,7 +9,11 @@
     <script src="../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>
     <script>
       console.log(VueRuntimeDom);
-      let { createApp, h } = VueRuntimeDom;
+      let { createApp, h, reactive } = VueRuntimeDom;
+      let state = reactive({ name: "张三" });
+      let fn = () => {
+        state.name = "李四";
+      };
       let App = {
         data: { a: "data" },
         render(proxy) {
@@ -25,12 +29,11 @@
               "div",
               {
                 style: { color: "red" },
-                onClick: () => {
-                  alert("323");
-                },
+                onClick: fn,
               },
+              state.name
               // "hello world"
-              h("p", "hello world")
+              // h("p", "hello world")
               // ["hello world", "你好，世界"]
             );
           };

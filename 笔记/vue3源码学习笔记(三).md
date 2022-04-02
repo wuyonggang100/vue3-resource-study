@@ -147,7 +147,7 @@
 
   
 
-## 二、 虚拟节点 vnode
+# 二、 虚拟节点 vnode
 
 在runtime-core 中创建 ；
 
@@ -237,7 +237,7 @@ function nomalizeChildren(vnode, children) {
 
 
 
-### 三、组件实例
+# 三、组件实例
 
 ### 3.1 组件的实例 instance
 
@@ -516,7 +516,63 @@ function flushJobs() {
 
 
 
+# 四、diff 算法
 
+- 使用组件实例上的新旧 subTree 进行比较， 即需要调用 render 方法获取新的 subTree ， 需要得到实例的 proxy 作为参数；
+- 组件更新主要是更新组件的 props , diff 针对的是元素的更新；
+
+### 4.1 元素更新
+
+1. ##### 新旧元素类型不同，直接移除旧的，挂载新的
+
+   patch 函数中，如果新旧元素类型不同，直接干掉旧的，原位插入新的，需要找到参照元素；先找到目标元素的下一个元素，记住，然后将新元素插入到参照元素的前面；同时将旧的 vnode 置为 null ， 就会进入新建流程，等同于挂载了一个新节点；
+
+   ```js
+    const isSameVNodeType = (n1, n2) => {
+       return n1.type === n2.type && n1.key === n2.key;
+     };
+   
+     const unmount = (vnode) => {
+       console.log(vnode.el);
+       hostRemove(vnode.el);
+     };
+   
+   
+     // n1 是上一次的 vnode， n2 是新的 vnode, anchor 是 diff 时的位置参照节点
+     const patch = (n1, n2, container, anchor = null) => {
+       // 针对 vnode 的类型做不同处理
+       const { shapeFlag, type } = n2;
+   
+       if (n1 && !isSameVNodeType(n1, n2)) {
+         anchor = hostNextSibling(n1.el);
+         unmount(n1);
+         n1 = null;
+       }
+   
+       switch (type) {
+         case Text: // vnode 是个文本字符串要单独处理
+           processText(n1, n2, container);
+           break;
+         default:
+           debugger;
+           // 非文本的其他情况
+           if (shapeFlag & ShapeFlags.ELEMENT) {
+             // 此时 vnode是普通元素，此处会进入 patch 递归终止
+             processElement(n1, n2, container, anchor);
+           } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+             // 此时 vnode 是状态组件, 内部会继续调用 patch 方法递归
+             processComponent(n1, n2, container);
+           }
+           break;
+       }
+     };
+   ```
+
+2. ##### 新旧元素类型相同，比较属性
+
+   元素类型相同，比如都是 div ，就节点复用，然后更新属性和 children ；此时要进入 **patchElement **方法；
+
+3. 
 
 
 

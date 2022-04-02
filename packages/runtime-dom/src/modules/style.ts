@@ -4,7 +4,7 @@ export const patchStyle = (el, prev, next) => {
   if (next == null) {
     el.removeAttribute("style");
   } else {
-    // 老的里有，新的里面没有
+    // 老的里有，新的里面没有，直接干掉
     if (prev) {
       for (let key in prev) {
         if (next[key] == null) {

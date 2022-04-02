@@ -71,7 +71,7 @@ function finishComponentSetup(instance) {
     instance.render = Component.render;
   }
   // console.log(instance.render.toString());
-  console.log(instance);
+  console.log("instance----", instance);
 }
 
 // context 对象的五个属性
