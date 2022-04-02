@@ -478,11 +478,41 @@ h 函数的 children 参数只有以下三种类型， 可以将 children 中的
 
 
 
+#### 3.6 数据更新的调度
+
+先更新父， 再更新子，因此要对 effect 队列进行排序；每个 effct 都有一个 id， 父级 id < 子级 id 
+
+连续多次更新只会让同一个 effect 在一次调度中执行一次，
+
+![image-20220402182757360](vue3源码学习笔记(三).assets/image-20220402182757360.png)
 
 
 
+```js
+let queue = [];
+let isFlushPending = false;
+export function queueJob(job) {
+  // 保证同一个 effect 在一次调度中只会执行一次
+  if (!queue.includes(job)) {
+    queue.push(job);
+    queueFlush(); // 异步调度
+  }
+}
 
+function queueFlush() {
+  if (!isFlushPending) {
+    isFlushPending = true;
+    Promise.resolve().then(flushJobs);
+  }
+}
+function flushJobs() {
+  isFlushPending = false;
+  queue.sort((a, b) => a.id - b.id); // 升序排列，父在前，子在后
+  queue.forEach((job) => job());
+  queue.length = 0; // 调度更新完毕后，清空队列
+}
 
+```
 
 
 

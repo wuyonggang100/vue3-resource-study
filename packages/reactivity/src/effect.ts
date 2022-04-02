@@ -116,7 +116,7 @@ export function trigger(target, type, key?, newValue?, oldValue?) {
   // 最后批量一次执行
   effects.forEach((effect: any) => {
     if (effect.options?.scheduler) {
-      effect.options.scheduler();
+      effect.options.scheduler(effect); // 数据更新时会进入调度，而不是直接调用 effect
     } else {
       effect();
     }

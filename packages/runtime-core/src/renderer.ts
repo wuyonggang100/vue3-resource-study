@@ -3,6 +3,7 @@ import { isObject, ShapeFlags } from "@vue/shared";
 import { createComponentInstance, setupComponent } from "./component";
 import { effect } from "@vue/reactivity";
 import { createVNode, nomalizeVNode, Text } from "./vnode";
+import { queueJob } from "./scheduler";
 
 export function createRenderer(rendererOptions) {
   const {
@@ -17,26 +18,32 @@ export function createRenderer(rendererOptions) {
 
   const setupRenderEffect = (instance, container) => {
     // 每个组件都有一个 effect 函数，vue3 是组件级更新
-    effect(function componentEffect() {
-      if (!instance.isMounted) {
-        // 初次渲染
-        const proxyToUse = instance.proxy;
+    effect(
+      function componentEffect() {
+        if (!instance.isMounted) {
+          // 初次渲染
+          const proxyToUse = instance.proxy;
 
-        // 组件内渲染的内容为 subTree , 得到一个 vnode， 即 render 函数执行后的结果是个 vnode
-        // 更新的时候可以用 subTree 进行对比；
-        let subTree = (instance.subTree = instance.render.call(
-          proxyToUse,
-          proxyToUse
-        ));
-        console.log(subTree);
+          // 组件内渲染的内容为 subTree , 得到一个 vnode， 即 render 函数执行后的结果是个 vnode
+          // 更新的时候可以用 subTree 进行对比；
+          let subTree = (instance.subTree = instance.render.call(
+            proxyToUse,
+            proxyToUse
+          ));
+          console.log(subTree);
 
-        // 用 render 函数的返回值继续渲染，此处是个递归
-        patch(null, subTree, container);
-        instance.isMounted = true;
-      } else {
-        // diff 更新
+          // 用 render 函数的返回值继续渲染，此处是个递归
+          patch(null, subTree, container);
+          instance.isMounted = true;
+        } else {
+          // diff 更新
+          console.log("数据更新了，要 diff 更新 ui 了");
+        }
+      },
+      {
+        scheduler: queueJob,
       }
-    });
+    );
   };
 
   // ------------- 挂载 --------------------
@@ -58,6 +65,7 @@ export function createRenderer(rendererOptions) {
       mountComponent(n2, container); // 直接挂载到容器中
     } else {
       // diff 更新
+      console.log("节点更新了----");
     }
   };
 
