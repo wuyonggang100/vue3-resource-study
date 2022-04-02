@@ -19,16 +19,24 @@
           // return {
           //   c: "setup",
           // };
-          // console.log("setup 运行");
+          console.log("setup 运行");
           return (proxy) => {
-            return h("div", { style: { color: "red" } }, "hello world");
-            console.log("setup 运行");
+            return h(
+              "div",
+              {
+                style: { color: "red" },
+                onClick: () => {
+                  alert("323");
+                },
+              },
+              // "hello world"
+              h("p", "hello world")
+              // ["hello world", "你好，世界"]
+            );
           };
         },
       };
-      createApp(App, { name: "秦始皇", age: 53 }, "我是app的儿子").mount(
-        "#app"
-      );
+      createApp(App, { name: "秦始皇", age: 53 }).mount("#app");
     </script>
   </body>
 </html>

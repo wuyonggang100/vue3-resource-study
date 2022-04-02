@@ -70,7 +70,7 @@ function finishComponentSetup(instance) {
     }
     instance.render = Component.render;
   }
-  console.log(instance.render.toString());
+  // console.log(instance.render.toString());
   console.log(instance);
 }
 

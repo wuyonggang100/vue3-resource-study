@@ -196,6 +196,8 @@ if(type & ShapeFlags.COMPONENT){
 
 ### 2.2  vnode 中的属性
 
+其中 shapeFlag 属性是给vnode 的 children 使用的，
+
 ```js
   const vnode = {
     __v_isVnode: true, // 标识是一个虚拟节点
@@ -208,6 +210,32 @@ if(type & ShapeFlags.COMPONENT){
     shapeFlag,
   };
 ```
+
+此处等同于 ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.ELEMENT | type，表示子节点是个状态组件，或普通元素，或文本节点，或者是个数组子节点
+
+```js
+function nomalizeChildren(vnode, children) {
+  // children 如果有，只能是字符串或者数组
+  let type = 0;
+  if (children == null) {
+    // 没有子节点，不做处理
+  } else if (isArray(children)) {
+    type = ShapeFlags.ARRAY_CHILDREN; // 数组子节点
+  } else {
+    type = ShapeFlags.TEXT_CHILDREN; // 文本子节点
+  }
+  // 此 shapeFlag 属性是给vnode 的 children 使用的
+  // 此处等同于 ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.ELEMENT | type，
+  // 表示子节点是个状态组件，或普通元素，或文本节点，或者是个数组子节点
+  vnode.shapeFlag = vnode.shapeFlag | type;
+  // 等同于 vnode.shapeFlag |=  type;
+}
+
+```
+
+
+
+
 
 ### 三、组件实例
 
@@ -345,10 +373,9 @@ get({ _: instance }, key) {
 ```js
 h('div',{})
 h('div','hello world')
-h('div',{}, 'hello world')
+h('div',{}, ['hello world',h('p','你好')])
 h('div',h(’p‘,{}, '我是p标签'))
 h('div',{},h(’p‘,{}, '我是p标签'))
-h('div',{}, p, span)
 ```
 
 - h 函数执行后得到的是个 vnode ， 其内部是调用了 createVnode 方法， 即 render 函数调用后得到的是个 vnode ，得到此 vnode 以后需要递归解析， 即继续调用 patch 方法，直到解析出每一层的元素；
@@ -383,6 +410,70 @@ export function h(type, propsOrChildren, children) {
     return createVNode(type, propsOrChildren, children);
   }
 }
+```
+
+
+
+h 函数的 children 参数只有以下三种类型， 可以将 children 中的每一项转为一个 vnode， 然后调用 patch 函数，塞进容器中；
+
+1.  h 函数得到的 vnode 对象；
+
+2. 字符串文本；
+
+3. 数组，而数组中的元素也是以上两种类型
+
+   
+
+- #### patch 函数
+
+  >  renderer.ts 文件  ，第一个参数为 null 时是新建挂载，否则是更新；
+
+  processText 是粒度最小的，
+
+```js
+// n1 是上一次的 vnode， n2 是新的vnode
+  const patch = (n1, n2, container) => {
+    // 针对 vnode 的类型做不同处理
+    const { shapeFlag, type } = n2;
+    switch (type) {
+      case Text: // vnode 是个文本字符串要单独处理
+        processText(n1, n2, container);
+        break;
+      default:
+        // 非文本的其他情况
+        if (shapeFlag & ShapeFlags.ELEMENT) {
+          // 此时 vnode是普通元素，此处会进入 patch 递归终止
+          processElement(n1, n2, container);
+        } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+          // 此时 vnode 是状态组件, 内部会继续调用 patch 方法递归，组件会分新建和更新两种
+          processComponent(n1, n2, container);
+        }
+        break;
+    }
+  };
+
+// 组件的处理
+  const processComponent = (n1, n2, container) => {
+    // 没有上一次虚拟节点就是初始化操作，否则就是更新
+    if (n1 == null) {
+      mountComponent(n2, container); // 直接挂载到容器中
+    } else {
+        // diff 更新
+    }
+  };
+
+
+// 组件初次挂载
+  const mountComponent = (initialVNode, container) => {
+    // 组件的渲染流程，最核心的就是拿到 render 方法的返回值进行渲染
+    // 1. 创建组件实例
+    const instance = (initialVNode.component =
+      createComponentInstance(initialVNode));
+    // 2. 将需要的数据解析到实例上
+    setupComponent(instance);
+    // 3. 创建一个 effect 让 render 函数执行
+    setupRenderEffect(instance, container);
+  };
 ```
 
 

@@ -3,7 +3,6 @@ import { isArray, isObject } from "@vue/shared";
 import { createVNode, isVnode } from "./vnode";
 
 export function h(type, propsOrChildren, children) {
-  console.log("h 函数");
   let l = arguments.length; // 参数长度
   // createVNode 的第三个参数, 即 children , 只能是 null, 字符串或者数组
   if (l == 2) {

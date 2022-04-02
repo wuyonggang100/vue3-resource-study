@@ -42,6 +42,18 @@ function nomalizeChildren(vnode, children) {
   } else {
     type = ShapeFlags.TEXT_CHILDREN; // 文本子节点
   }
+  // 此 shapeFlag 属性是给vnode 的 children 使用的
+  // 此处等同于 ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.ELEMENT | type，
+  // 表示子节点是个状态组件，或普通元素，或文本节点，或者是个数组子节点
   vnode.shapeFlag = vnode.shapeFlag | type;
+
   // 等同于 vnode.shapeFlag |=  type;
+}
+
+export const Text = Symbol("text");
+export function nomalizeVNode(child) {
+  // h 函数创建的 vnode 直接返回
+  if (isObject(child)) return child;
+  // 不是对象就会是文本字符串或数字，此处是专门对文本的处理
+  return createVNode(Text, null, String(child));
 }
