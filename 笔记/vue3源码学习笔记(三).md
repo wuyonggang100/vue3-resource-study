@@ -523,7 +523,7 @@ function flushJobs() {
 
 ### 4.1 元素更新
 
-1. ##### 新旧元素类型不同，直接移除旧的，挂载新的
+1. #### 新旧元素类型不同，直接移除旧的，挂载新的
 
    patch 函数中，如果新旧元素类型不同，直接干掉旧的，原位插入新的，需要找到参照元素；先找到目标元素的下一个元素，记住，然后将新元素插入到参照元素的前面；同时将旧的 vnode 置为 null ， 就会进入新建流程，等同于挂载了一个新节点；
 
@@ -568,9 +568,66 @@ function flushJobs() {
      };
    ```
 
-2. ##### 新旧元素类型相同，比较属性
+2. #### 新旧元素类型相同，比较属性
 
-   元素类型相同，比如都是 div ，就节点复用，然后更新属性和 children ；此时要进入 **patchElement **方法；
+   - ##### 元素类型相同，
+
+     - 比如都是 div ，就节点复用，然后更新属性和 children ；此时要进入 **patchElement **方法；
+
+   ```js
+   // renderer.ts 中
+   
+   // 对比新旧元素的属性
+   const patchProps = (oldProps, newProps, el) => {
+       if (oldProps !== newProps) {
+           // 如果新旧属性值不一样, 就使用新的属性值
+           for (let key in newProps) {
+               const prev = oldProps[key];
+               const next = newProps[key];
+               if (prev !== next) {
+                   hostPatchProp(el, key, prev, next);
+               }
+           }
+           // 如果少了一个属性值，就从 el 中删除此属性
+           for (let key in oldProps) {
+               if (!(key in newProps)) {
+                   hostPatchProp(el, key, oldProps[key], null);
+               }
+           }
+       }
+   };
+   
+   // 对比新旧元素,两者元素类型相同，此时要复用旧的元素，然后更新属性，更新 children
+   const patchElement = (n1, n2, container) => {
+       // 元素复用
+       let el = (n2.el = n1.el);
+       // 更新属性
+       let oldProps = n1.props;
+       let newProps = n2.props;
+       patchProps(oldProps, newProps, el);
+       // 更新children
+       patchChildren(n1, n2, container);
+   };
+   
+   ```
+
+   - ##### 更新 children 的几种情况
+
+     实际对比的是 children 的 vnode ，每个children 的 vnode 都只有三种情况：文本, 数组(包含 h 函数创建的对象, 和数组), null , 这样新旧组合就会有以下 9 种情况，有些操作可以进行合并。
+
+     | 序号 | 新的children | 旧的children | 操作                 | 调用的方法                                        |
+     | ---- | ------------ | ------------ | -------------------- | ------------------------------------------------- |
+     | 1    | text         | text         | 直接设置新值覆盖旧的 | hostSetElementText(el, c2)                        |
+     | 2    | text         | null         | 直接设置新值覆盖旧的 | hostSetElementText(el, c2)                        |
+     | 3    | text         | arr          | 卸载旧的，设置新值   | unmountChildren(c1) hostSetElementText(el, c2)    |
+     | 4    | arr          | text         | 清空旧的，挂载新的   | hostSetElementText(el, "")  mountChildren(c2, el) |
+     | 5    | arr          | arr          | 进入 diff 算法       | patchKeyedChildren(c1, c2, el)                    |
+     | 6    | arr          | null         | 挂载新的             | mountChildren(c2, el)                             |
+     | 7    | null         | text         | 清空旧的             | hostSetElementText(el, "")                        |
+     | 8    | null         | arr          | 卸载旧的，           | unmountChildren(c1)                               |
+     | 9    | null         | null         | 无操作               | 无                                                |
+
+     
 
 3. 
 

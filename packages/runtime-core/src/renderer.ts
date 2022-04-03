@@ -81,6 +81,10 @@ export function createRenderer(rendererOptions) {
 
   // --------处理普通元素----------------
 
+  // 对比新旧元素的 children,  都是数组，都有 key
+  const patchKeyedChildren = (c1, c2, container) => {
+    //
+  };
   // 子节点是数组
   const mountChildren = (children, container) => {
     // 多个子节点需要拼接后再一次性插入，可以向创建成虚拟节点，再一次性插入
@@ -90,6 +94,13 @@ export function createRenderer(rendererOptions) {
       patch(null, child, container);
     }
   };
+  // 移除 children, 每一项是个 vnode
+  const unmountChildren = (children) => {
+    for (let child of children) {
+      unmount(child);
+    }
+  };
+
   // 第一次挂载元素
   const mountElement = (vnode, container, anchor = null) => {
     // 此处是个递归过程
@@ -114,6 +125,55 @@ export function createRenderer(rendererOptions) {
     hostInsert(el, container, anchor);
   };
 
+  // children 的 vnode 只有三种情况, 文本, 数组(包含 h 函数创建的对象,和数组), null ,
+  // 对比新旧元素的 children，实际上组合起来有九种操作, 有些操作可以进行合并,
+  // 其中 arr --- arr 会走入 diff 算法；其他不会
+  const patchChildren = (n1, n2, el) => {
+    const c1 = n1.children;
+    const c2 = n2.children;
+    const prevShapFlag = n1.shapeFlag;
+    const shapFlag = n2.shapeFlag;
+    debugger;
+    // children 的 vnode 只有三种情况, 文本, 数组(包含 h 函数创建的对象,和数组), null ,
+    if (shapFlag & ShapeFlags.TEXT_CHILDREN) {
+      // 1. 新元素或旧元素的 children 是文本
+      // 新的是文本，旧的是数组
+      if (prevShapFlag & ShapeFlags.ARRAY_CHILDREN) {
+        unmountChildren(c1);
+      }
+      // 新的是文本，旧的文本或 null ；
+      if (c1 !== c2) {
+        hostSetElementText(el, c2);
+      }
+    } else {
+      // 此块内新的children 是数组或空
+      if (prevShapFlag & ShapeFlags.ARRAY_CHILDREN) {
+        // 旧元素的 children 是数组
+        // 如果新元素的 children 是数组，就是两个数组的比对，就要走 diff 算法
+        if (shapFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // diff -----
+          patchKeyedChildren(c1, c2, el);
+        } else {
+          // 不是数组，也不是字符串，那就是空, 要将旧的 children 删掉
+          unmountChildren(c1);
+        }
+      } else {
+        // 如果旧的children 是文本，需要先清空
+        if (prevShapFlag & ShapeFlags.TEXT_CHILDREN) {
+          hostSetElementText(el, "");
+        }
+
+        // 新的是数组， 旧的是 文本或 null, 文本在上一行被干掉了， null 就直接挂载新的
+        if (shapFlag & ShapeFlags.ARRAY_CHILDREN) {
+          mountChildren(c2, el);
+        }
+      }
+    }
+    // 2. 新旧元素都有children,
+
+    // 3. 新元素有 children, 旧元素没有
+    // 4. 新元素没有 children， 旧元素有
+  };
   // 对比新旧元素的属性
   const patchProps = (oldProps, newProps, el) => {
     if (oldProps !== newProps) {
@@ -140,10 +200,13 @@ export function createRenderer(rendererOptions) {
     // 元素复用
     let el = (n2.el = n1.el);
 
-    // 更新属性
+    // 更新元素的属性
     let oldProps = n1.props;
     let newProps = n2.props;
     patchProps(oldProps, newProps, el);
+
+    // 更新元素的 children
+    patchChildren(n1, n2, el);
   };
 
   // 对文本字符串的处理

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>
+    <script>
+      console.log(VueRuntimeDom);
+      let { createApp, h, reactive, ref } = VueRuntimeDom;
+      let App = {
+        setup() {
+          let flag = ref(true);
+          setTimeout(() => {
+            flag.value = false;
+          }, 3000);
+          return (proxy) => {
+            return !flag.value
+              ? h(
+                  "div",
+                  {
+                    style: { color: "red" },
+                  },
+                  [h("div", "hello"), h("div", "hello")]
+                )
+              : h(
+                  "div",
+                  // "p",
+                  {
+                    style: { color: "blue" },
+                  },
+                  h("div", "world")
+                );
+          };
+        },
+      };
+      createApp(App, { name: "秦始皇", age: 53 }).mount("#app");
+    </script>
+  </body>
+</html>
