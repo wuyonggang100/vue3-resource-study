@@ -82,8 +82,63 @@ export function createRenderer(rendererOptions) {
   // --------处理普通元素----------------
 
   // 对比新旧元素的 children,  都是数组，都有 key
-  const patchKeyedChildren = (c1, c2, container) => {
-    //
+  const patchKeyedChildren = (c1, c2, el) => {
+    debugger;
+    // 默认都从前向后比较
+    let i = 0;
+    let l1 = c1.length - 1;
+    let l2 = c2.length - 1;
+
+    // 1. 看看新旧头部是否有相同的, 如果相同，就比递归较他们的 children, 不相同就跳出循环进行尾部比较
+    while (i <= l1 && i <= l2) {
+      const n1 = c1[i];
+      const n2 = c2[i];
+      if (isSameVNodeType(n1, n2)) {
+        patch(n1, n2, el);
+      } else {
+        break;
+      }
+      i++;
+    }
+    console.log("前面比完了---", i, l1, l2);
+    // 2. 看看新旧尾部是否有相同的, 从后向前找，相同的先处理掉，比完后就有一方头和尾已经比较完毕了，剩下就是进入分析处理
+    while (i <= l1 && i <= l2) {
+      const n1 = c1[l1];
+      const n2 = c2[l2];
+      if (isSameVNodeType(n1, n2)) {
+        patch(n1, n2, el);
+      } else {
+        break;
+      }
+      l1--;
+      l2--;
+    }
+    console.log("后面比完了---", i, l1, l2);
+    //------------------分析处理阶段-------------------
+    // i > l1: 说明c2 已经把 c1 的头和尾比较完了,不需要乱序比较了
+    if (i > l1) {
+      debugger;
+      // 此时就是新增了，旧的少，新的多, 可能从前插入， 也可能从后插入，因此需要找到插入位置
+      if (i <= l2) {
+        // 此时 l1<i<=l2
+        // 此时 l2 是尾部相同区域起点的前一个位置
+        // nextPos < c2.length-1 表示尾部有相同的部分，需要插入到尾部相同区域的前面， 即 l2 索引的后面
+        // nextPos >= c2.length-1 表示尾部没有相同部分，直接 append
+        const anchor = l2 < c2.length - 1 ? c1[l1 + 1].el : null;
+        while (i <= l2) {
+          patch(null, c2[i], el, anchor);
+          i++;
+        }
+      }
+    } else if (i > l2) {
+      // 旧的把新的头和尾比较完了,需要做删除操作, 也不需要乱序比较
+      while (i <= l1) {
+        unmount(c1[i]);
+        i++;
+      }
+    } else {
+      // 谁也没有把谁比较消耗完, 且又不是批量相同，就要进入乱序比较，最大可能复用旧的
+    }
   };
   // 子节点是数组
   const mountChildren = (children, container) => {
@@ -111,7 +166,6 @@ export function createRenderer(rendererOptions) {
         hostPatchProp(el, key, null, props[key]);
       }
     }
-    debugger;
     // 将 children 塞进外层
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       // children 是个 文本 , 终止 mountElement递归
@@ -223,7 +277,7 @@ export function createRenderer(rendererOptions) {
   const processElement = (n1, n2, container, anchor = null) => {
     if (n1 == null) {
       // 第一次挂载
-      mountElement(n2, container);
+      mountElement(n2, container, anchor);
     } else {
       // 更新元素
       console.log("diff 更新元素-----");
@@ -249,7 +303,7 @@ export function createRenderer(rendererOptions) {
       unmount(n1);
       n1 = null;
     }
-
+    debugger;
     switch (type) {
       case Text: // vnode 是个文本字符串要单独处理
         processText(n1, n2, container);

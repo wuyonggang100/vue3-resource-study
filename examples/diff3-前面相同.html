@@ -23,15 +23,23 @@
                   {
                     style: { color: "red" },
                   },
-                  "张三"
+                  [
+                    h("p", { key: "a" }, "a"),
+                    h("p", { key: "b" }, "b"),
+                    h("p", { key: "c" }, "c"),
+                  ]
                 )
               : h(
                   "div",
-                  // "p",
                   {
                     style: { color: "blue" },
                   },
-                  "李四"
+                  [
+                    h("p", { key: "a" }, "a"),
+                    h("p", { key: "b" }, "b"),
+                    h("p", { key: "d" }, "d"),
+                    h("p", { key: "e" }, "e"),
+                  ]
                 );
           };
         },
