@@ -4,6 +4,7 @@ import { createComponentInstance, setupComponent } from "./component";
 import { effect } from "@vue/reactivity";
 import { createVNode, nomalizeVNode, Text } from "./vnode";
 import { queueJob } from "./scheduler";
+import { getSequence } from "./getSequence";
 
 export function createRenderer(rendererOptions) {
   const {
@@ -138,6 +139,69 @@ export function createRenderer(rendererOptions) {
       }
     } else {
       // 谁也没有把谁比较消耗完, 且又不是批量相同，就要进入乱序比较，最大可能复用旧的
+      // 对于中间乱序的部分, 将新的做成映射表(旧的也可以), 将 key 作为 key, 索引作为 value
+      let s1 = i;
+      let s2 = i;
+      const keyToNewIndexMap = new Map();
+
+      const toBePatchedNum = l2 - s2 + 1; // 有几个乱序元素需要处理的
+
+      // 乱序中已经被 patch 过了的就在此做标记，没有patch 过的最后就是 0 ,就是新增的
+      const newIndexToOldIndexMap = new Array(toBePatchedNum).fill(0);
+
+      // 从新的 children 中找到乱序的部分，得到映射表 keyToNewIndexMap
+      for (let i = s2; i <= l2; i++) {
+        const childVNode = c2[i];
+        keyToNewIndexMap.set(childVNode.key, i);
+      }
+
+      // console.log("keyToNewIndexMap----", keyToNewIndexMap);
+
+      // 到旧的中去看看有没有可以复用的或有没有要删除的
+      for (let i = s1; i <= l1; i++) {
+        const oldVNode = c1[i];
+        const newIndex = keyToNewIndexMap.get(oldVNode.key);
+        if (newIndex === undefined) {
+          // 找不到旧的节点，说明需要删除了
+          unmount(oldVNode);
+          console.log("要删掉的---", oldVNode.key);
+        } else {
+          // 先对在旧的乱序中找到的，建立新旧索引之间的关系
+          // newIndex - s2 是新的乱序序列组中的索引
+          // i+1 是在旧的整个数组中第几个,从 1 开始
+          newIndexToOldIndexMap[newIndex - s2] = i + 1;
+          // 找到了就比对,并更新 新的 vnode
+          patch(oldVNode, c2[newIndex], el); // 复用元素，更新属性，更新 children
+          console.log("新旧索引映射表---", newIndexToOldIndexMap);
+        }
+      }
+      // console.log("keyToNewIndexMap----", keyToNewIndexMap);
+      console.log("newIndexToOldIndexMap----", newIndexToOldIndexMap);
+
+      debugger;
+      // 计算不需要移动的最长递增子序列，increasingNewIndexSequence 存放的是，乱序组中全部不需要移动的元素, 在乱序组中的索引
+      let increasingNewIndexSequence = getSequence(newIndexToOldIndexMap);
+      let j = increasingNewIndexSequence.length - 1; // 最后一个不需要移动的元素的索引
+      console.log("---不动的--", increasingNewIndexSequence);
+      // 因为是从后向前插入的，因此此循环需要倒序
+      for (let i = toBePatchedNum - 1; i >= 0; i--) {
+        let currentIndex = i + s2; // 在整个新的数组中的索引
+        let child = c2[currentIndex];
+        // 只要后面还有就插入到后面一个的前面，否则就 append
+        let anchor =
+          currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
+        // == 0 表示在旧数组中没有找到的，需要新增
+        if (newIndexToOldIndexMap[i] == 0) {
+          patch(null, child, el, anchor);
+        } else {
+          // 需要移动
+          if (i !== increasingNewIndexSequence[j]) {
+            hostInsert(child.el, el, anchor);
+          } else {
+            j--; // 跳过不需要移动的元素
+          }
+        }
+      }
     }
   };
   // 子节点是数组

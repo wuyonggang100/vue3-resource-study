@@ -570,6 +570,8 @@ function flushJobs() {
 
 2. #### 新旧元素类型相同，比较属性
 
+   > children 和 属性 的比较是独立的，互不影响；
+
    - ##### 元素类型相同，
 
      - 比如都是 div ，就节点复用，然后更新属性和 children ；此时要进入 **patchElement **方法；
@@ -661,9 +663,175 @@ function flushJobs() {
 
        ​										<img src="vue3源码学习笔记(三).assets/image-20220405112931929.png" alt="image-20220405112931929" style="zoom:80%;" />
 
-     - 乱序比较，最长递增子序列
+     - 乱序比较，性能上与  vue2 一样；
 
-        	
+       > 1. 给新的乱序组建一个 Map 映射表 keyToNewIndexMap， key: vnode 的 key--> value: 整个数组索引 ；然后遍历旧的乱序的组，在映射中如果找不到 oldVnode 的 key ，说明要删除了；
+       >
+       > 2. 建立新旧索引映射表 newIndexToOldIndexMap(表示每一个是原来整个旧数组中的第几个) ，用一个数组表示，此数组长度为新的乱序组的长度，默认每项都为0；在上面映射表 m1 中如果找到了，就 改变 m2 中对应项的值；最后为 0 的部分都是在旧的乱序中没有找到的， 就要新增；找到的部分旧逐个插入；
+
+        	<img src="vue3源码学习笔记(三).assets/image-20220405163018735.png" alt="image-20220405163018735" style="zoom:80%;" />
+
+       ```js
+        // 谁也没有把谁比较消耗完, 且又不是批量相同，就要进入乱序比较，最大可能复用旧的
+             // 对于中间乱序的部分, 将新的做成映射表(旧的也可以), 将 key 作为 key, 索引作为 value
+             let s1 = i;
+             let s2 = i;
+             const keyToNewIndexMap = new Map();
+       
+             const toBePatchedNum = l2 - s2 + 1; // 有几个乱序元素需要处理的
+       
+             // 乱序中已经被 patch 过了的就在此做标记，没有patch 过的最后就是 0 ,就是新增的
+             const newIndexToOldIndexMap = new Array(toBePatchedNum).fill(0);
+       
+             // 从新的 children 中找到乱序的部分，得到映射表 keyToNewIndexMap
+             for (let i = s2; i <= l2; i++) {
+               const childVNode = c2[i];
+               keyToNewIndexMap.set(childVNode.key, i);
+             }
+       
+             console.log("keyToNewIndexMap----", keyToNewIndexMap);
+       
+             // 到旧的中去看看有没有可以复用的或有没有要删除的
+             for (let i = s1; i <= l1; i++) {
+               const oldVNode = c1[i];
+               const newIndex = keyToNewIndexMap.get(oldVNode.key);
+               if (newIndex === undefined) {
+                 // 找不到旧的节点，说明需要删除了
+                 unmount(oldVNode);
+                 console.log("要删掉的---", oldVNode.key);
+               } else {
+                 // 先对在旧的乱序中找到的，建立新旧索引之间的关系
+                 // newIndex - s2 是新的乱序序列组中的索引
+                 // i+1 是在旧的整个数组中第几个,从 1 开始, 如果连续增长的就可以不用移动，尽可能少的移动
+                 newIndexToOldIndexMap[newIndex - s2] = i + 1;
+                 // 找到了就复用比对,并更新 新的 vnode
+                 patch(oldVNode, c2[newIndex], el); // 此中会复用元素，更新属性，更新children
+               }
+             }
+             console.log("newIndexToOldIndexMap----", newIndexToOldIndexMap);
+       
+             // 因为是从后向前插入的，因此此循环需要倒序
+             for (let i = toBePatchedNum - 1; i >= 0; i--) {
+               let currentIndex = i + s2; // 在整个新的数组中的索引
+               let child = c2[currentIndex];
+               // 只要后面还有就插入到后面一个的前面，否则就 append
+               let anchor =
+                 currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
+               // == 0 表示在旧数组中没有找到的，需要新增
+               if (newIndexToOldIndexMap[i] == 0) {
+                 patch(null, child, el, anchor);
+               } else {
+                 hostInsert(child.el, el, anchor); // 对全部可以复用的元素都移动了, 此处可用最长递增子序列来优化
+               }
+             }
+       ```
+
+       
+
+     - 最长递增子序列
+
+       1. 是乱序比对中的一部分，对新旧数组中都有的乱序元素的插入做了优化；
+
+       2. 在上面的乱序比对中，对可以连续复用的一些元素也进行了逐个移动插入，这里是可以进一步优化的，因此就有最长递增子序列的出现；
+
+       3. 在上面的数组映射表 newIndexToOldIndexMap 中，对索引连续递增长的部分是可以不移动的，做到尽可能的少移动，这就叫最长递增子序列 。
+
+       4. 首先找到在数组中连续增长做多的部分；vue3 中使用 **贪心+ 二分查找**  的算法；在查找中，如果当前的比 **目标列表** 中最后一个大，直接插入到最后；反之就用二分查找到列表中比当前小的最后一个，替换其后紧跟的那个。对数组中值为 0 的项，不需要处理，那是需要新增的 child 所在位置, 不需要移动；
+
+       5. 按照 4 的算法得到的结果，数量是对的，但是结果会有出入，是替换动作导致的，有些是不需要替换的。因此使用前驱方式，结果集合中的每一项都是当前最小的尾项，要记住自己的前一个的索引，最后追溯找到自己的前一个，最后将索引转为值，
+
+       6. 使用最长递增子序列算法，得到乱序组中全部不需要移动的元素，在乱序组中的索引；然后，将整个乱序组倒序遍历，将索引与不移动元素的索引对比，相同的就是不需要移动的，进行跳过，需要移动的就插入；
+
+          ```js
+            // 计算不需要移动的最长递增子序列，increasingNewIndexSequence 存放的是，乱序组中全部不需要移动的元素, 在乱序组中的索引
+                let increasingNewIndexSequence = getSequence(newIndexToOldIndexMap);
+                let j = increasingNewIndexSequence.length - 1; // 最后一个不需要移动的元素的索引
+                console.log("---不动的--", increasingNewIndexSequence);
+                // 因为是从后向前插入的，因此此循环需要倒序
+                for (let i = toBePatchedNum - 1; i >= 0; i--) {
+                  let currentIndex = i + s2; // 在整个新的数组中的索引
+                  let child = c2[currentIndex];
+                  // 只要后面还有就插入到后面一个的前面，否则就 append
+                  let anchor =
+                    currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
+                  // == 0 表示在旧数组中没有找到的，需要新增
+                  if (newIndexToOldIndexMap[i] == 0) {
+                    patch(null, child, el, anchor);
+                  } else {
+                    // 需要移动
+                    if (i !== increasingNewIndexSequence[j]) {
+                      hostInsert(child.el, el, anchor);
+                    } else {
+                      j--; // 跳过不需要移动的元素
+                    }
+                  }
+                }
+          ```
+
+          
+
+       7. 没有最长递增子序列之前，性能是 O(n 2) , 之后是 n(n*logn) ; 大大优化了；
+
+          ```js
+          // 最长递增子序列算法
+          export function getSequence(arr) {
+            const len = arr.length;
+            const result = [0]; // 结果集中默认有第一项, 粗放的是索引值，一定是连续增长的
+            const p = new Array(arr.length); // 一个与 arr 等长的数组，用来存放索引
+            let start;
+            let end;
+            let middle; // result 集合的中间值
+            for (let i = 0; i < len; i++) {
+              const item = arr[i];
+              if (item !== 0) {
+                let resultLastIndex = result[result.length - 1];
+                // 如果当前项比结果集中最后一个大就放到结果集中，要的是连续增长的数字
+                if (item > arr[resultLastIndex]) {
+                  p[i] = resultLastIndex; // 当前项的前一个索引
+                  result.push(i);
+                  continue;
+                }
+                // 如果当前项比结果集中最后一个小，就要进行二分查找，找到结果集中比当前项小的最后一个，替换其后紧跟的那个
+                // 二分查找
+                start = 0;
+                end = result.length - 1;
+                while (start < end) {
+                  middle = ((start + end) / 2) | 0; // 只取整数部分
+                  // 如果当前项比中间值大，就到右半部分中找，反之到左半部分找
+                  if (arr[result[middle]] < item) {
+                    start = middle + 1;
+                  } else {
+                    end = middle;
+                  }
+                  console.log("middle--", middle);
+                }
+          
+                // 当前值很大, 比缩小范围后找到的最后一个还大时，就不能替换，相等时也不能替换，只有较小的值才是我们需要的
+                if (item < arr[result[start]]) {
+                  // 替换时要将被替换项的前一个索引记下来
+                  if (start > 0) {
+                    p[i] = result[start - 1];
+                  }
+                  // 最终目的是替换 result 集合中的某个值
+                  result[start] = i;
+                }
+              }
+            }
+            let len1 = result.length;
+            let last = result[len1 - 1];
+            while (len1-- > 0) {
+              result[len1] = last;
+              last = p[last];
+            }
+          
+            return result;
+          }
+          
+          const arr = [2, 3, 1, 5, 6, 8, 7, 9, 4];
+          console.log(getSequence(arr)); // [ 0, 1, 3, 4, 6, 7 ]  --> 2,3,5,6,7,9
+          ```
+
+          
 
 
 
